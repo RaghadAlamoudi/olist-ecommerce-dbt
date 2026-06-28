@@ -2,62 +2,99 @@ version: 2
 
 models:
   - name: stg_orders
+    description: >
+      One row per order placed on the Olist marketplace.
+      Cleans and renames columns from the raw orders source.
+      Timestamps are cast from string to timestamp type.
     columns:
       - name: order_id
+        description: Unique identifier for each order. Primary key.
         tests:
           - unique
           - not_null
       - name: customer_id
+        description: Foreign key to stg_customers. Links each order to a customer.
         tests:
           - not_null
       - name: order_status
+        description: Current status of the order (delivered, shipped, canceled, etc.)
         tests:
           - not_null
           - accepted_values:
               arguments:
-                values: ['delivered', 'shipped', 'canceled', 'unavailable', 
-                          'invoiced', 'processing', 'created', 'approved']
+                values: ['delivered', 'shipped', 'canceled', 'unavailable',
+                         'invoiced', 'processing', 'created', 'approved']
+      - name: ordered_at
+        description: Timestamp when the customer placed the order.
+      - name: delivered_at
+        description: Timestamp when the order was delivered. Null for orders that haven't been delivered yet.
 
   - name: stg_customers
+    description: >
+      One row per customer order profile. Important caveat: customer_id is 
+      generated fresh for each order, not per person. Use customer_unique_id 
+      to track the same individual across multiple orders.
     columns:
       - name: customer_id
+        description: Identifier generated per order, not per person. Primary key of this table.
         tests:
           - unique
           - not_null
       - name: customer_unique_id
+        description: The actual unique identifier for a person. A customer who places 3 orders gets 3 different customer_ids but the same customer_unique_id.
         tests:
           - not_null
 
   - name: stg_order_items
+    description: >
+      One row per item within an order. Since an order can contain multiple 
+      products from different sellers, the grain here is order_id + order_item_id, 
+      not order_id alone.
     columns:
       - name: order_id
+        description: Foreign key to stg_orders. One order can have multiple items.
         tests:
           - not_null
       - name: product_id
+        description: Foreign key to stg_products. Identifies which product was purchased.
         tests:
           - not_null
       - name: seller_id
+        description: Foreign key to stg_sellers. Identifies which seller fulfilled this item.
         tests:
           - not_null
 
   - name: stg_order_payments
+    description: >
+      One row per payment record. An order can have multiple rows here if the 
+      customer split payment across methods (e.g. part card, part voucher). 
+      Aggregate by order_id before joining to orders.
     columns:
       - name: order_id
+        description: Foreign key to stg_orders.
         tests:
           - not_null
       - name: payment_value
+        description: Amount paid in this payment record. Zero values exist for voucher and undefined payment types.
         tests:
           - not_null
 
   - name: stg_order_reviews
+    description: >
+      One row per customer review linked to an order. Some orders have more 
+      than one review in the source data — a known data quality issue. 
+      The marts layer deduplicates by keeping the most recent review per order.
     columns:
       - name: review_id
+        description: Unique identifier for each review.
         tests:
           - not_null
       - name: order_id
+        description: Foreign key to stg_orders.
         tests:
           - not_null
       - name: review_score
+        description: Customer satisfaction score from 1 (worst) to 5 (best).
         tests:
           - not_null
           - accepted_values:
@@ -65,28 +102,42 @@ models:
                 values: [1, 2, 3, 4, 5]
 
   - name: stg_products
+    description: >
+      One row per product listed on the Olist marketplace. Category names are 
+      stored in Portuguese here — English translations are added in dim_products 
+      via a join to stg_product_category_name_translation.
     columns:
       - name: product_id
+        description: Unique identifier for each product. Primary key.
         tests:
           - unique
           - not_null
 
   - name: stg_sellers
+    description: One row per seller registered on the Olist marketplace.
     columns:
       - name: seller_id
+        description: Unique identifier for each seller. Primary key.
         tests:
           - unique
           - not_null
 
   - name: stg_geolocation
+    description: >
+      Latitude and longitude coordinates mapped to zip code prefixes. 
+      Multiple coordinate records exist per zip code, so values are averaged 
+      when joined to dim_customers and dim_sellers.
     columns:
       - name: zip_code
+        description: Zip code prefix used to join to customer and seller tables.
         tests:
           - not_null
 
   - name: stg_product_category_name_translation
+    description: Lookup table that maps Portuguese product category names to English. Used in dim_products to add category_name_english.
     columns:
       - name: category_name
+        description: Product category name in Portuguese. Matches category_name in stg_products.
         tests:
           - unique
           - not_null

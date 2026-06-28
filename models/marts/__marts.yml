@@ -2,29 +2,65 @@ version: 2
 
 models:
   - name: fct_orders
+    description: >
+      One row per order. The central fact table of this project.
+      Brings together order status and timestamps from stg_orders,
+      payment totals from stg_order_payments, item counts from stg_order_items,
+      and the most recent review per order from stg_order_reviews.
+      Includes derived delivery metrics (days to deliver, days early or late).
     columns:
       - name: order_id
+        description: Unique identifier for each order. Primary key.
         tests:
           - unique
           - not_null
       - name: customer_id
+        description: Foreign key to dim_customers.
         tests:
           - not_null
           - relationships:
               arguments:
                 to: ref('dim_customers')
                 field: customer_id
+      - name: order_status
+        description: Current status of the order (delivered, shipped, canceled, etc.)
+      - name: ordered_at
+        description: Timestamp when the customer placed the order.
+      - name: delivered_at
+        description: Timestamp when the order was delivered. Null for undelivered orders.
       - name: total_payment_value
+        description: Total amount paid across all payment records for this order. Null for orders with no payment records (typically canceled orders).
+      - name: payment_methods_used
+        description: Number of distinct payment types used (e.g. 1 if card only, 2 if card + voucher).
       - name: item_count
+        description: Number of items in the order. Null for orders with no item records.
+      - name: items_subtotal
+        description: Sum of item prices before freight.
+      - name: total_freight_value
+        description: Total freight cost across all items in the order.
+      - name: review_score
+        description: Customer satisfaction score from 1 to 5. Null if no review was submitted. Deduplicated to the most recent review where multiple exist.
+      - name: days_to_deliver
+        description: Number of days between order placement and delivery. Null for undelivered orders.
+      - name: days_early_or_late
+        description: Positive means delivered early, negative means delivered late, relative to the estimated delivery date.
+
   - name: fct_order_items
+    description: >
+      One row per item within an order. Use this table for product and 
+      seller performance analysis. Joins order status and timestamp 
+      from stg_orders to give context to each line item.
     columns:
       - name: order_id
+        description: Foreign key to fct_orders.
         tests:
           - not_null
       - name: order_item_id
+        description: Sequential item number within an order (1, 2, 3...). Combined with order_id forms the primary key.
         tests:
           - not_null
       - name: product_id
+        description: Foreign key to dim_products.
         tests:
           - not_null
           - relationships:
@@ -32,6 +68,7 @@ models:
                 to: ref('dim_products')
                 field: product_id
       - name: seller_id
+        description: Foreign key to dim_sellers.
         tests:
           - not_null
           - relationships:
@@ -39,26 +76,76 @@ models:
                 to: ref('dim_sellers')
                 field: seller_id
       - name: price
+        description: Price of this item at time of purchase.
         tests:
           - not_null
+      - name: freight_value
+        description: Freight cost for this item.
+      - name: item_total
+        description: Price plus freight for this item.
 
   - name: dim_customers
+    description: >
+      One row per customer_id. Enriched with approximate coordinates 
+      from the geolocation table via zip code. Use customer_unique_id 
+      to analyze behavior across multiple orders from the same person.
     columns:
       - name: customer_id
+        description: Primary key. Note this is order-scoped — one person can have multiple customer_ids.
         tests:
           - unique
           - not_null
+      - name: customer_unique_id
+        description: Stable identifier for the actual person across all their orders.
+      - name: city
+        description: Customer city from the order address.
+      - name: state
+        description: Customer state from the order address.
+      - name: latitude
+        description: Approximate latitude based on zip code. Averaged across multiple geolocation records for the same zip.
+      - name: longitude
+        description: Approximate longitude based on zip code. Averaged across multiple geolocation records for the same zip.
 
   - name: dim_sellers
+    description: >
+      One row per seller registered on the Olist marketplace. 
+      Enriched with approximate coordinates from the geolocation 
+      table via zip code.
     columns:
       - name: seller_id
+        description: Unique identifier for each seller. Primary key.
         tests:
           - unique
           - not_null
+      - name: city
+        description: City where the seller is based.
+      - name: state
+        description: State where the seller is based.
+      - name: latitude
+        description: Approximate latitude based on seller zip code.
+      - name: longitude
+        description: Approximate longitude based on seller zip code.
 
   - name: dim_products
+    description: >
+      One row per product. Joins the Portuguese category name from 
+      stg_products to its English translation from 
+      stg_product_category_name_translation.
     columns:
       - name: product_id
+        description: Unique identifier for each product. Primary key.
         tests:
           - unique
           - not_null
+      - name: category_name
+        description: Product category in Portuguese as it appears in the source data.
+      - name: category_name_english
+        description: English translation of the category name. Null if no translation exists for the category.
+      - name: weight_g
+        description: Product weight in grams.
+      - name: length_cm
+        description: Product length in centimeters.
+      - name: height_cm
+        description: Product height in centimeters.
+      - name: width_cm
+        description: Product width in centimeters.
