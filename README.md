@@ -6,7 +6,7 @@ A dbt transformation layer built on the
 clean, tested, and documented analytics layer using dbt-fusion.
 
 This is a transformation project, not an analysis project. The focus
-is on how the data is structured and why — not what the final numbers look like.
+is on how the data is structured and why, not what the final numbers look like.
 
 ---
 
@@ -15,7 +15,7 @@ is on how the data is structured and why — not what the final numbers look lik
 - **Transformation:** dbt-fusion 2.0
 - **Warehouse:** Snowflake
 - **Source data:** 9 CSV files loaded into `OLIST.RAW`
-- **Architecture:** staging → marts (two-layer)
+- **Architecture:** staging -> marts (two-layer)
 
 ---
 
@@ -40,7 +40,7 @@ RAW (Snowflake)
 
 `orders` and `order_items` describe different things.
 
-`fct_orders` is the central fact — each row is a purchase, with a
+`fct_orders` is the central fact. Each row is a purchase with a
 timestamp, a status, and delivery information. `fct_order_items` is a
 separate fact because each row is a specific item within that order,
 with a price and freight value you can sum. An order can have multiple
@@ -49,10 +49,10 @@ order-level data.
 
 ### Why are payments part of fct_orders and not their own model?
 
-Payments are essentially an extension of orders. When looking at an
-order, you naturally want to know how much was paid and by what method
-— and the payments table already links back to orders via `order_id`.
-Aggregating payment totals directly into `fct_orders` (total value,
+Payments are an extension of orders. When looking at an order, you
+naturally want to know how much was paid and by what method. The
+payments table already links back to orders via `order_id`, so
+aggregating payment totals directly into `fct_orders` (total value,
 distinct payment types, max installments) keeps that information where
 it's most useful without adding an unnecessary model.
 
@@ -61,7 +61,7 @@ it's most useful without adding an unnecessary model.
 `fct_orders` is supposed to be one row per order. Some orders in the
 source data have more than one review, which means a simple join would
 cause the same order to appear multiple times. That breaks the whole
-point of the fact table — any count or sum on it would return wrong
+point of the fact table since any count or sum on it would return wrong
 numbers. The fix keeps only the most recent review per order using
 Snowflake's `QUALIFY` clause.
 
@@ -77,31 +77,31 @@ and sellers both join to geolocation via zip code, so coordinates are
 averaged at the zip level before joining to avoid duplicating rows in
 the dimension tables.
 
-**`product_category_name_translation` is not its own dimension.** It's
+**`product_category_name_translation` is not its own dimension.** It is
 a Portuguese-to-English lookup for a single column. It gets joined
-directly into `dim_products` and doesn't appear in the marts layer on
+directly into `dim_products` and does not appear in the marts layer on
 its own.
 
 ---
 
 ## Testing
 
-**Staging layer — generic tests**
+**Staging layer - generic tests**
 Uniqueness and not_null on primary keys, not_null on foreign keys,
 accepted_values for order status and review scores.
 
-**Marts layer — relationship tests**
+**Marts layer - relationship tests**
 Every foreign key in the fact tables is tested against its dimension.
 `customer_id` in `fct_orders` must exist in `dim_customers`. `product_id`
 and `seller_id` in `fct_order_items` must exist in their respective dims.
 
-**Singular tests — business logic**
+**Singular tests - business logic**
 Three custom SQL tests:
 - Item prices must be greater than zero
 - Payment values must be greater than or equal to zero
-  (zero is valid — some orders are fully covered by vouchers)
+  (zero is valid since some orders are fully covered by vouchers)
 - Delivered orders must have a delivery timestamp
-  (set to `severity: warn` — 8 records in the source data fail this,
+  (set to `severity: warn` since 8 records in the source data fail this,
   which is a known source data issue, not a transformation bug)
 
 ---
