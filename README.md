@@ -6,7 +6,7 @@ A dbt transformation layer built on the
 clean, tested, and documented analytics layer using dbt-fusion.
 
 This is a transformation project, not an analysis project. The focus
-is on how the data is structured and why — not what the final numbers look like.
+is on how the data is structured and why, not what the final numbers look like.
 
 ---
 
