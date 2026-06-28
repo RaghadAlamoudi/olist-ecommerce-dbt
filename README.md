@@ -1,4 +1,3 @@
-```markdown
 # Olist E-Commerce dbt Project
 
 A dbt transformation layer built on the
@@ -144,4 +143,3 @@ dbt build    # models + tests in DAG order
 **Expected result:**
 58 total | 57 success | 1 warn
 *(the warn is the 8 delivered orders missing timestamps in the source data)*
-```
