@@ -1,5 +1,3 @@
-That's exactly the voice. Now I can write it.
-
 ```markdown
 # Olist E-Commerce dbt Project
 
