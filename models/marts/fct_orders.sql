@@ -22,6 +22,7 @@ reviews as (
         review_created_at,
         review_answered_at
     from {{ ref('stg_order_reviews') }}
+    qualify row_number() over (partition by order_id order by review_created_at desc) = 1
 ),
 
 items as (
