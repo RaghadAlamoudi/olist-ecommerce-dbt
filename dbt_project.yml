@@ -1,6 +1,6 @@
-name: olist_ecommerce
+name: olist_dbt_analytics
 
-profile: olist_ecommerce
+profile: olist_dbt_analytics
 
 seed-paths: ["seeds"]
 model-paths: ["models"]
@@ -9,9 +9,8 @@ clean-targets:
   - "target"
   - "dbt_packages"
 
-
 models:
-  olist_ecommerce:
+  olist_dbt_analytics:
     +static_analysis: strict
     staging:
       +materialized: view
